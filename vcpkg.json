@@ -1,0 +1,6 @@
+{
+	"name" : "find-and-replace",
+	"dependencies" : [
+		"fltk"
+	]
+}
