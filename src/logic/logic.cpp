@@ -93,10 +93,22 @@ void Logic::trySetProjectRootDirectory(std::filesystem::path rootDirectory)
     }
 }
 
-void Logic::getOccurances(
-    const std::string& searchTerm
-)
+void Logic::trySetSearchTerm(const std::string& searchTerm)
 {
+    if (!searchTerm.empty())
+    {
+        this->searchTerm = searchTerm;
+    }
+    else
+    {
+        this->searchTerm.clear();
+    }
+}
+
+void Logic::findOccurances()
+{
+    occurrences.clear();
+
     std::vector<std::filesystem::path> files = getAllFiles();
     filterOutBySearchTerm(files, searchTerm);
 
@@ -108,29 +120,33 @@ void Logic::getOccurances(
         occurrence.filePath = file;
         occurrence.lineOccurrences = getLineOccurrencesFromFile(file, searchTerm);
 
-        std::cout << file.filename() << std::endl;
-        std::cout << "Line occurrences:" << std::endl;
-        for (const auto& [lineNumber, lineContent] : occurrence.lineOccurrences)
-        {
-            std::cout << "Line " << lineNumber << ": " << lineContent << std::endl;
-        }
-        std::cout << std::endl;
+        //std::cout << file.filename() << std::endl;
+        //std::cout << "Line occurrences:" << std::endl;
+        //for (const auto& [lineNumber, lineContent] : occurrence.lineOccurrences)
+        //{
+            //std::cout << "Line " << lineNumber << ": " << lineContent << std::endl;
+        //}
+        //std::cout << std::endl;
+        occurrences.push_back(occurrence);
     }
 
 }
 
-void Logic::tryGetOccurances(
-	const std::string& searchTerm
-)
+void Logic::tryFindOccurances()
 {
-	if (isValid())
+	if (isValid() && searchTerm.length() > 0)
 	{
-		getOccurances(searchTerm);
+		findOccurances();
 	}
-	else
-	{
-		std::cout << "Invalid project root directory." << std::endl;
-	}
+    else
+    {
+        occurrences.clear();
+    }
+}
+
+std::vector<FileOccurrence>& Logic::getOccurrences()
+{
+    return occurrences;
 }
 
 void Logic::replaceOccurances()

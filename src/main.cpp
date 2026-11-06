@@ -8,25 +8,98 @@
 #include <FL/Fl_Check_Button.H>
 #include <FL/Fl_Scroll.H>
 #include <FL/Fl_File_Chooser.H>
+#include <FL/Fl_Group.H>
+#include <FL/Fl_Tabs.H>
 
 #include <logic.hpp>
+
+//
+void updateScrollContent(Fl_Scroll* scroll, const std::vector<FileOccurrence>& occurrences)
+{
+	scroll->clear();
+	scroll->begin();
+
+	int yOffset = 15;
+	for (const auto& occurrence : occurrences)
+	{
+		int groupHeight = 35 + occurrence.lineOccurrences.size() * 20;
+		Fl_Group* group = new Fl_Group(10, yOffset, 290, groupHeight);
+		group->box(FL_UP_BOX);
+		group->align(FL_ALIGN_TOP_LEFT);
+		group->clip_children(1);
+
+		group->begin();
+		
+		Fl_Box* fileBox = new Fl_Box(10, yOffset, 290, 20);
+		fileBox->copy_label(occurrence.filePath.filename().c_str());
+		fileBox->box(FL_FLAT_BOX);
+		fileBox->color(FL_LIGHT2);
+		//fileBox->labelsize(14);
+		fileBox->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
+		
+		yOffset += 25;
+
+		for (const auto& [lineNumber, lineContent] : occurrence.lineOccurrences)
+		{
+			std::string lineLabel = "Line " + std::to_string(lineNumber) + ": " + lineContent;
+			Fl_Box* lineBox = new Fl_Box(25, yOffset, 290, 20);
+			lineBox->copy_label(lineLabel.c_str());
+			lineBox->box(FL_NO_BOX);
+			lineBox->labelsize(12);
+			lineBox->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
+			yOffset += 20;
+		}
+
+		yOffset += 14; // Add some space between groups
+
+		group->end();
+	}
+
+	scroll->end();
+	//scroll->scroll_to(0, 0);
+	scroll->redraw();
+}
+
+void tryFindOccurancesWrapper(Logic* logic, Fl_Scroll* scroll)
+{
+	logic->tryFindOccurances();
+	updateScrollContent(scroll, logic->getOccurrences());
+}
 
 void onProjectRootDirInputChanged(Fl_Widget* widget, void* data)
 {
     Logic* logic = static_cast<Logic*>(data);
-    Fl_Input* input = static_cast<Fl_Input*>(widget);
+    Fl_Input* projRootDir = static_cast<Fl_Input*>(widget);
+	Fl_Scroll* scroll = static_cast<Fl_Scroll*>(widget->parent()->child(10));
 
-    logic->trySetProjectRootDirectory(input->value());
+    logic->trySetProjectRootDirectory(projRootDir->value());
+
+	Fl_Box* projRootDirValidityBox = static_cast<Fl_Box*>(widget->parent()->child(0));
+
+	if (logic->isValid())
+	{
+		projRootDirValidityBox->copy_label("Directory\nOK");
+		projRootDirValidityBox->labelcolor(FL_BLACK);
+	}
+	else if (projRootDir->value()[0] == '\0')
+		projRootDirValidityBox->copy_label("");
+	else
+	{
+		projRootDirValidityBox->copy_label("Invalid\nDirectory");
+		projRootDirValidityBox->labelcolor(FL_RED);
+	}
+
+	tryFindOccurancesWrapper(logic, scroll);
 }
 
 void onFindInputChanged(Fl_Widget* widget, void* data)
 {
     Logic* logic = static_cast<Logic*>(data);
-    Fl_Input* input = static_cast<Fl_Input*>(widget);
+    Fl_Input* findInput = static_cast<Fl_Input*>(widget);
+	Fl_Scroll* scroll = static_cast<Fl_Scroll*>(widget->parent()->child(10));
 
-	logic->tryGetOccurances(
-		input->value()
-	);
+	logic->trySetSearchTerm(findInput->value());
+	tryFindOccurancesWrapper(logic, scroll);
 }
 
 void onReplaceInputChanged(Fl_Widget* widget, void* data)
@@ -42,7 +115,6 @@ void onMatchCaseChanged(Fl_Widget* widget, void* data)
 
 	logic->setMatchCase(checkButton->value());
 }
-
 void onWholeWordChanged(Fl_Widget* widget, void* data)
 {
 	Logic* logic = static_cast<Logic*>(data);
@@ -59,8 +131,8 @@ void onDirButtonClicked(Fl_Widget* widget, void* data)
 	{
 		logic->trySetProjectRootDirectory(dir);
 
-		Fl_Input* input = static_cast<Fl_Input*>(widget->parent()->child(1));
-		input->value(dir);
+		Fl_Input* findInput = static_cast<Fl_Input*>(widget->parent()->child(1));
+		findInput->value(dir);
 	}
 }
 
@@ -70,47 +142,35 @@ int main(int argc, char **argv) {
 
 	Fl_Window *window = new Fl_Window(340, 340);
 
-	Fl_Box *projRootDirValidityBox = new Fl_Box(270, 18, 20, 20, "Invalid\nDirectory");
-	
+	Fl_Box *projRootDirValidityBox = new Fl_Box(245, 5, 70, 40);
 	Fl_Input* projRootDir = new Fl_Input(5, 5, 200, 20);
-	projRootDir->when(FL_WHEN_CHANGED);
-	projRootDir->callback(onProjectRootDirInputChanged, &logic);
-	
 	Fl_Input* findInput = new Fl_Input(5, 30, 200, 20);
-	findInput->when(FL_WHEN_CHANGED);
-	findInput->callback(onFindInputChanged, &logic);
-	
 	Fl_Input* replaceInput = new Fl_Input(5, 55, 200, 20);
-	replaceInput->when(FL_WHEN_CHANGED);
-	replaceInput->callback(onReplaceInputChanged, &logic);
-
 	Fl_Button *dirButton = new Fl_Button(210, 5, 20, 20, "@fileopen");
-	dirButton->callback(onDirButtonClicked, &logic);
-
 	Fl_Button *findButton = new Fl_Button(210, 30, 20, 20, "@search");
-
 	Fl_Check_Button *wholeButton = new Fl_Check_Button(5, 105, 20, 20, "Whole Word");
-	wholeButton->callback(onWholeWordChanged, &logic);
-
 	Fl_Check_Button *caseButton = new Fl_Check_Button(115, 105, 20, 20, "Match Case");
-	caseButton->callback(onMatchCaseChanged, &logic);
-
 	Fl_Button *nextButton = new Fl_Button(5, 80, 100, 20, "Replace Next");
 	Fl_Button *allButton = new Fl_Button(110, 80, 80, 20, "Replace All");
 	
-	//
 	Fl_Scroll *scroll = new Fl_Scroll(5,  130, 300, 200);
 	scroll->box(FL_DOWN_BOX);
-	scroll->begin();
-	
-	for (int i = 0; i < 20; ++i) {
-		char label[32];
-		sprintf(label, "Box %d", i + 1);
-		new Fl_Box(5, 5 + (i * 20), 100, 20, strdup(label));
-		//box->box(FL_UP_BOX); 
-	}
+	scroll->type(Fl_Scroll::VERTICAL_ALWAYS);
+	//
+	projRootDir->when(FL_WHEN_CHANGED);
+	projRootDir->callback(onProjectRootDirInputChanged, &logic);
 
-	scroll->end();
+	findInput->when(FL_WHEN_CHANGED);
+	findInput->callback(onFindInputChanged, &logic);
+
+	replaceInput->when(FL_WHEN_CHANGED);
+	replaceInput->callback(onReplaceInputChanged, &logic);
+
+	dirButton->callback(onDirButtonClicked, &logic);
+
+	wholeButton->callback(onWholeWordChanged, &logic);
+
+	caseButton->callback(onMatchCaseChanged, &logic);
 
 	//
 	window->end();
