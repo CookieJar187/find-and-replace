@@ -1,17 +1,12 @@
 {
-    "version": 3,
-    "configurePresets": [
-        {
-            "name": "linux",
-            "displayName": "Linux Development",
-            "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/build",
-            "cacheVariables": {
-                "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_MAKE_PROGRAM": "/usr/bin/make",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-            }
-        }
-    ]
+	"version": 3,
+	"configurePresets": [{
+		"name": "windows",
+    	"displayName": "Default vcpkg build",
+    	"binaryDir": "${sourceDir}/build",
+    	"cacheVariables": {
+        	"CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+			"CMAKE_CXX_COMPILER": "g++"
+    	}
+    }]
 }
-

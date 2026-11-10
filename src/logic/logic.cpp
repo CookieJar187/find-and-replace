@@ -51,9 +51,9 @@ void Logic::filterOutBySearchTerm(
     }
 }
 
-std::map<int, std::string> Logic::getLineOccurrencesFromFile(const std::filesystem::path& filePath, const std::string& searchTerm)
+std::multimap<int, std::string> Logic::getLineOccurrencesFromFile(const std::filesystem::path& filePath, const std::string& searchTerm)
 {
-    std::map<int, std::string> lineOccurrences;
+    std::multimap<int, std::string> lineOccurrences;
     std::ifstream file(filePath);
     if (!file.is_open())
     {
@@ -66,9 +66,15 @@ std::map<int, std::string> Logic::getLineOccurrencesFromFile(const std::filesyst
     while (std::getline(file, line))
     {
         ++lineNumber;
-        if (line.find(searchTerm) != std::string::npos)
+        if (!searchTerm.empty())
         {
-            lineOccurrences[lineNumber] = line;
+            std::string::size_type position = 0;
+
+            while ((position = line.find(searchTerm, position)) != std::string::npos)
+            {
+                lineOccurrences.emplace(lineNumber, line);
+                position += searchTerm.length();
+            }
         }
     }
 
@@ -78,7 +84,7 @@ std::map<int, std::string> Logic::getLineOccurrencesFromFile(const std::filesyst
 void Logic::trySetProjectRootDirectory(std::filesystem::path rootDirectory)
 {
     std::error_code ec;
-
+    
     if (
         std::filesystem::exists(rootDirectory, ec) && !ec &&
         std::filesystem::is_directory(rootDirectory)
@@ -112,24 +118,14 @@ void Logic::findOccurances()
     std::vector<std::filesystem::path> files = getAllFiles();
     filterOutBySearchTerm(files, searchTerm);
 
-    //std::cout << "Found " << files.size() << " occurrences of '" << searchTerm << "' in the project directory." << std::endl;
-
     for (const auto& file : files)
     {
         FileOccurrence occurrence;
         occurrence.filePath = file;
         occurrence.lineOccurrences = getLineOccurrencesFromFile(file, searchTerm);
 
-        //std::cout << file.filename() << std::endl;
-        //std::cout << "Line occurrences:" << std::endl;
-        //for (const auto& [lineNumber, lineContent] : occurrence.lineOccurrences)
-        //{
-            //std::cout << "Line " << lineNumber << ": " << lineContent << std::endl;
-        //}
-        //std::cout << std::endl;
         occurrences.push_back(occurrence);
     }
-
 }
 
 void Logic::tryFindOccurances()
@@ -151,7 +147,38 @@ std::vector<FileOccurrence>& Logic::getOccurrences()
 
 void Logic::replaceOccurances()
 {
-    // Implementation for replacing occurrences
+    for (const auto& occurrence : occurrences)
+    {
+        std::ifstream file(occurrence.filePath);
+        if (!file.is_open())
+        {
+            std::cerr << "Failed to open file for reading: " << occurrence.filePath << std::endl;
+            continue;
+        }
+
+        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+
+        for (const auto& [lineNumber, lineContent] : occurrence.lineOccurrences)
+        {
+            size_t pos = 0;
+            while ((pos = content.find(searchTerm, pos)) != std::string::npos)
+            {
+                content.replace(pos, searchTerm.length(), replaceTerm); // Replace with the desired replacement
+                pos += replaceTerm.length(); // Move past the replaced term
+            }
+        }
+
+        std::ofstream outFile(occurrence.filePath);
+        if (!outFile.is_open())
+        {
+            std::cerr << "Failed to open file for writing: " << occurrence.filePath << std::endl;
+            continue;
+        }
+        outFile << content;
+    }
+
+    tryFindOccurances(); // Refresh occurrences after replacement
 }
 
 bool Logic::isValid() const

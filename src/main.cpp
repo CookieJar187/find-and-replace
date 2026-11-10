@@ -10,6 +10,7 @@
 #include <FL/Fl_File_Chooser.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Tabs.H>
+#include <FL/fl_ask.H>
 
 #include <logic.hpp>
 
@@ -27,14 +28,13 @@ void updateScrollContent(Fl_Scroll* scroll, const std::vector<FileOccurrence>& o
 		group->box(FL_UP_BOX);
 		group->align(FL_ALIGN_TOP_LEFT);
 		group->clip_children(1);
-
 		group->begin();
-		
+
 		Fl_Box* fileBox = new Fl_Box(10, yOffset, 290, 20);
-		fileBox->copy_label(occurrence.filePath.filename().c_str());
+		const std::string filename = occurrence.filePath.filename().string();
+		fileBox->copy_label(filename.c_str());
 		fileBox->box(FL_FLAT_BOX);
 		fileBox->color(FL_LIGHT2);
-		//fileBox->labelsize(14);
 		fileBox->align(FL_ALIGN_LEFT | FL_ALIGN_INSIDE);
 		
 		yOffset += 25;
@@ -66,6 +66,22 @@ void tryFindOccurancesWrapper(Logic* logic, Fl_Scroll* scroll)
 	updateScrollContent(scroll, logic->getOccurrences());
 }
 
+void updateProjRootDirValidityBox(Logic* logic, Fl_Box* projRootDirValidityBox, const char* projRootDirValue)
+{
+	if (logic->isValid())
+	{
+		projRootDirValidityBox->copy_label("Directory\nOK");
+		projRootDirValidityBox->labelcolor(FL_BLACK);
+	}
+	else if (projRootDirValue[0] == '\0')
+		projRootDirValidityBox->copy_label("");
+	else
+	{
+		projRootDirValidityBox->copy_label("Invalid\nDirectory");
+		projRootDirValidityBox->labelcolor(FL_RED);
+	}
+}
+
 void onProjectRootDirInputChanged(Fl_Widget* widget, void* data)
 {
     Logic* logic = static_cast<Logic*>(data);
@@ -74,20 +90,11 @@ void onProjectRootDirInputChanged(Fl_Widget* widget, void* data)
 
     logic->trySetProjectRootDirectory(projRootDir->value());
 
-	Fl_Box* projRootDirValidityBox = static_cast<Fl_Box*>(widget->parent()->child(0));
-
-	if (logic->isValid())
-	{
-		projRootDirValidityBox->copy_label("Directory\nOK");
-		projRootDirValidityBox->labelcolor(FL_BLACK);
-	}
-	else if (projRootDir->value()[0] == '\0')
-		projRootDirValidityBox->copy_label("");
-	else
-	{
-		projRootDirValidityBox->copy_label("Invalid\nDirectory");
-		projRootDirValidityBox->labelcolor(FL_RED);
-	}
+	updateProjRootDirValidityBox(
+		logic,
+		static_cast<Fl_Box*>(widget->parent()->child(0)),
+		projRootDir->value()
+	);
 
 	tryFindOccurancesWrapper(logic, scroll);
 }
@@ -104,8 +111,10 @@ void onFindInputChanged(Fl_Widget* widget, void* data)
 
 void onReplaceInputChanged(Fl_Widget* widget, void* data)
 {
-	std::cout << "Replace input changed: " << static_cast<Fl_Input*>(widget)->value() << std::endl;
-	// You can add logic here to handle the change in the replace input.
+	Logic* logic = static_cast<Logic*>(data);
+	Fl_Input* replaceInput = static_cast<Fl_Input*>(widget);
+
+	logic->setReplaceTerm(replaceInput->value());
 }
 
 void onMatchCaseChanged(Fl_Widget* widget, void* data)
@@ -131,8 +140,40 @@ void onDirButtonClicked(Fl_Widget* widget, void* data)
 	{
 		logic->trySetProjectRootDirectory(dir);
 
-		Fl_Input* findInput = static_cast<Fl_Input*>(widget->parent()->child(1));
-		findInput->value(dir);
+		Fl_Input* projRootDir = static_cast<Fl_Input*>(widget->parent()->child(1));
+		projRootDir->value(dir);
+
+		updateProjRootDirValidityBox(
+			logic,
+			static_cast<Fl_Box*>(widget->parent()->child(0)),
+			dir
+		);
+	}
+}
+
+void onReplaceAllClicked(Fl_Widget* widget, void* data)
+{
+	Logic* logic = static_cast<Logic*>(data);
+
+	if (logic->getOccurrences().empty())
+	{
+		fl_alert("No occurrences found to replace.");
+		return;
+	}
+	
+	int response = fl_choice(
+		"Are you sure you want to replace all occurrences?\nThis action cannot be undone.",
+		"No",
+		"Replace All",
+		"Cancel"
+	);
+	if (response == 1) // User chose "Replace All"
+	{
+		logic->replaceOccurances();
+		updateScrollContent(
+			static_cast<Fl_Scroll*>(widget->parent()->child(10)),
+			logic->getOccurrences()
+		);
 	}
 }
 
@@ -171,6 +212,8 @@ int main(int argc, char **argv) {
 	wholeButton->callback(onWholeWordChanged, &logic);
 
 	caseButton->callback(onMatchCaseChanged, &logic);
+
+	allButton->callback(onReplaceAllClicked, &logic);
 
 	//
 	window->end();

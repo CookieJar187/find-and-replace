@@ -5,7 +5,7 @@
 
 struct FileOccurrence {
     std::filesystem::path filePath;
-    std::map<int, std::string> lineOccurrences;
+    std::multimap<int, std::string> lineOccurrences;
 };
 
 class Logic
@@ -18,6 +18,7 @@ private:
 
 	std::filesystem::path projectRootDirectory;
 	std::string searchTerm;
+	std::string replaceTerm;
 
 	std::vector<FileOccurrence> occurrences;
 
@@ -26,7 +27,7 @@ private:
 		std::vector<std::filesystem::path>& files,
 		const std::string& searchTerm
 	);
-	std::map<int, std::string> getLineOccurrencesFromFile(
+	std::multimap<int, std::string> getLineOccurrencesFromFile(
 		const std::filesystem::path& filePath,
 		const std::string& searchTerm
 	);
@@ -36,6 +37,9 @@ public:
 	void setMatchCase(bool value) { matchCase = value; }
 	void setWholeWord(bool value) { wholeWord = value; }
 	
+	void setReplaceTerm(const std::string& replaceTerm)
+	{ this->replaceTerm = replaceTerm; }
+
 	void trySetProjectRootDirectory(
 		std::filesystem::path rootDirectory
 	);
