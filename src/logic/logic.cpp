@@ -3,6 +3,16 @@
 #include <logic.hpp>
 #include <system_error>
 
+std::string capitalize(const std::string& str)
+{
+    std::string result = str;
+    for (char& c : result)
+    {
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    }
+    return result;
+}
+
 std::vector<std::filesystem::path> Logic::getAllFiles()
 {
     std::vector<std::filesystem::path> foundFiles;
@@ -33,11 +43,16 @@ void Logic::filterOutBySearchTerm(
         }
 
         std::string line;
+        std::string capitalizedSearchTerm = capitalize(searchTerm);
+        std::string capitalizedLine;
         bool found = false;
         while (std::getline(file, line))
         {
-            if ((!matchCase && line.find(searchTerm) != std::string::npos) ||
-                (matchCase && line.find(searchTerm) != std::string::npos)) // Adjust this condition for case sensitivity
+            capitalizedLine = capitalize(line);
+
+            if ((matchCase && line.find(searchTerm) != std::string::npos) ||
+                (!matchCase && capitalizedLine.find(capitalizedSearchTerm) != std::string::npos)
+            )
             {
                 found = true;
                 break;
@@ -62,15 +77,22 @@ std::multimap<int, std::string> Logic::getLineOccurrencesFromFile(const std::fil
     }
 
     std::string line;
+    std::string capitalizedSearchTerm = capitalize(searchTerm);
+    std::string capitalizedLine;
     int lineNumber = 0;
     while (std::getline(file, line))
     {
         ++lineNumber;
+
         if (!searchTerm.empty())
         {
             std::string::size_type position = 0;
+            capitalizedLine = capitalize(line);
 
-            while ((position = line.find(searchTerm, position)) != std::string::npos)
+            while (
+                (matchCase && (position = line.find(searchTerm, position)) != std::string::npos) ||
+                (!matchCase && (position = capitalizedLine.find(capitalizedSearchTerm, position)) != std::string::npos)
+            )
             {
                 lineOccurrences.emplace(lineNumber, line);
                 position += searchTerm.length();
@@ -145,7 +167,7 @@ std::vector<FileOccurrence>& Logic::getOccurrences()
     return occurrences;
 }
 
-void Logic::replaceOccurances()
+void Logic::replaceOccurances() // ADDRESS MATCHING CASE FOR REPLACEMENT
 {
     for (const auto& occurrence : occurrences)
     {

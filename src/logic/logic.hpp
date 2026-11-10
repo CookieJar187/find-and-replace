@@ -13,8 +13,8 @@ class Logic
 private:
 	bool valid = false;
 
-	bool matchCase;
-	bool wholeWord;
+	bool matchCase = false;
+	bool wholeWord = false;
 
 	std::filesystem::path projectRootDirectory;
 	std::string searchTerm;
@@ -48,6 +48,8 @@ public:
 	);
 
 	std::vector<FileOccurrence>& getOccurrences();
+	std::string getSearchTerm() const { return searchTerm; }
+	std::string getReplaceTerm() const { return replaceTerm; }
 
 	void tryFindOccurances();
 	void replaceOccurances();

@@ -56,7 +56,7 @@ void updateScrollContent(Fl_Scroll* scroll, const std::vector<FileOccurrence>& o
 	}
 
 	scroll->end();
-	//scroll->scroll_to(0, 0);
+	scroll->scroll_to(0, 0);
 	scroll->redraw();
 }
 
@@ -86,7 +86,7 @@ void onProjectRootDirInputChanged(Fl_Widget* widget, void* data)
 {
     Logic* logic = static_cast<Logic*>(data);
     Fl_Input* projRootDir = static_cast<Fl_Input*>(widget);
-	Fl_Scroll* scroll = static_cast<Fl_Scroll*>(widget->parent()->child(10));
+	Fl_Scroll* scroll = static_cast<Fl_Scroll*>(widget->parent()->child(8));
 
     logic->trySetProjectRootDirectory(projRootDir->value());
 
@@ -103,7 +103,7 @@ void onFindInputChanged(Fl_Widget* widget, void* data)
 {
     Logic* logic = static_cast<Logic*>(data);
     Fl_Input* findInput = static_cast<Fl_Input*>(widget);
-	Fl_Scroll* scroll = static_cast<Fl_Scroll*>(widget->parent()->child(10));
+	Fl_Scroll* scroll = static_cast<Fl_Scroll*>(widget->parent()->child(8));
 
 	logic->trySetSearchTerm(findInput->value());
 	tryFindOccurancesWrapper(logic, scroll);
@@ -123,6 +123,11 @@ void onMatchCaseChanged(Fl_Widget* widget, void* data)
 	Fl_Check_Button* checkButton = static_cast<Fl_Check_Button*>(widget);
 
 	logic->setMatchCase(checkButton->value());
+
+	tryFindOccurancesWrapper(
+		logic,
+		static_cast<Fl_Scroll*>(widget->parent()->child(8))
+	);
 }
 void onWholeWordChanged(Fl_Widget* widget, void* data)
 {
@@ -130,6 +135,11 @@ void onWholeWordChanged(Fl_Widget* widget, void* data)
 	Fl_Check_Button* checkButton = static_cast<Fl_Check_Button*>(widget);
 
 	logic->setWholeWord(checkButton->value());
+
+	tryFindOccurancesWrapper(
+		logic,
+		static_cast<Fl_Scroll*>(widget->parent()->child(8))
+	);
 }
 
 void onDirButtonClicked(Fl_Widget* widget, void* data)
@@ -160,19 +170,32 @@ void onReplaceAllClicked(Fl_Widget* widget, void* data)
 		fl_alert("No occurrences found to replace.");
 		return;
 	}
+	else if (logic->getReplaceTerm().empty())
+	{
+		fl_alert("Replace term is empty.\nPlease enter a replace term.");
+		return;
+	}
 	
 	int response = fl_choice(
-		"Are you sure you want to replace all occurrences?\nThis action cannot be undone.",
+		"Are you sure you want to replace all occurrences of '%s' with '%s'?\nThis action cannot be undone.",
 		"No",
 		"Replace All",
-		"Cancel"
+		"Cancel",
+		logic->getSearchTerm().c_str(),
+		logic->getReplaceTerm().c_str()
 	);
 	if (response == 1) // User chose "Replace All"
 	{
 		logic->replaceOccurances();
 		updateScrollContent(
-			static_cast<Fl_Scroll*>(widget->parent()->child(10)),
+			static_cast<Fl_Scroll*>(widget->parent()->child(8)),
 			logic->getOccurrences()
+		);
+
+		fl_alert(
+			"All occurrences of '%s' have been replaced with '%s'.",
+			logic->getSearchTerm().c_str(),
+			logic->getReplaceTerm().c_str()
 		);
 	}
 }
@@ -188,11 +211,11 @@ int main(int argc, char **argv) {
 	Fl_Input* findInput = new Fl_Input(5, 30, 200, 20);
 	Fl_Input* replaceInput = new Fl_Input(5, 55, 200, 20);
 	Fl_Button *dirButton = new Fl_Button(210, 5, 20, 20, "@fileopen");
-	Fl_Button *findButton = new Fl_Button(210, 30, 20, 20, "@search");
+	//Fl_Button *findButton = new Fl_Button(210, 30, 20, 20, "@search");
 	Fl_Check_Button *wholeButton = new Fl_Check_Button(5, 105, 20, 20, "Whole Word");
-	Fl_Check_Button *caseButton = new Fl_Check_Button(115, 105, 20, 20, "Match Case");
-	Fl_Button *nextButton = new Fl_Button(5, 80, 100, 20, "Replace Next");
-	Fl_Button *allButton = new Fl_Button(110, 80, 80, 20, "Replace All");
+	Fl_Check_Button *caseButton = new Fl_Check_Button(110, 105, 20, 20, "Match Case");
+	//Fl_Button *nextButton = new Fl_Button(5, 80, 100, 20, "Replace Next");
+	Fl_Button *allButton = new Fl_Button(5, 80, 80, 20, "Replace All"); //110
 	
 	Fl_Scroll *scroll = new Fl_Scroll(5,  130, 300, 200);
 	scroll->box(FL_DOWN_BOX);
